@@ -1,0 +1,53 @@
+# Marginalia: n8n (research engine) + studio (web app, ElevenLabs broker).
+#   cp .env.example .env   # add your keys
+#   docker compose up -d
+#   open http://localhost:3000
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # The pipeline's Code nodes read API keys from the environment.
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      # Long LLM calls (writing the review) can take a few minutes.
+      N8N_RUNNERS_TASK_TIMEOUT: "900"
+      N8N_PAYLOAD_SIZE_MAX: "64"
+      N8N_SECURE_COOKIE: "false"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      # If you turn on n8n's SSRF protection, the studio stays reachable for progress callbacks.
+      N8N_SSRF_ALLOWED_HOSTNAMES: studio
+      EXECUTIONS_DATA_PRUNE: "true"
+      EXECUTIONS_DATA_MAX_AGE: "168"
+      GENERIC_TIMEZONE: ${TZ:-UTC}
+    entrypoint: ["tini", "--", "/bin/sh", "/marginalia/entrypoint.sh"]
+    ports:
+      - "127.0.0.1:5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/marginalia/workflows:ro
+      - ./n8n/entrypoint.sh:/marginalia/entrypoint.sh:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  studio:
+    image: node:22-alpine
+    restart: unless-stopped
+    working_dir: /app
+    command: ["node", "server/index.js"]
+    env_file: .env
+    environment:
+      N8N_URL: http://n8n:5678
+      N8N_PUBLIC_URL: http://localhost:5678
+      STUDIO_CALLBACK_URL: http://studio:3000
+      DATA_DIR: /app/data
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./:/app
+    depends_on:
+      - n8n
+
+volumes:
+  n8n_data:

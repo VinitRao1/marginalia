@@ -1,0 +1,2426 @@
+{
+ "question": "Do efficient attention mechanisms actually beat standard attention for long-context language modelling?",
+ "depth": "standard",
+ "title": "Efficient attention and long context",
+ "engine": "n8n",
+ "plan": {
+  "title": "Efficient attention and long context",
+  "domain": "computing",
+  "scope": "Sub-quadratic and hardware-efficient attention, and alternatives, for long sequences.",
+  "keyTerms": [
+   "sparse attention",
+   "linear attention",
+   "kernel approximation",
+   "low-rank attention",
+   "IO-aware attention",
+   "state space model",
+   "long context"
+  ],
+  "subQuestions": [
+   {
+    "id": "q1",
+    "question": "Do sub-quadratic approximations match full attention quality?",
+    "why": "",
+    "queries": []
+   },
+   {
+    "id": "q2",
+    "question": "Where do practical speed and memory gains come from?",
+    "why": "",
+    "queries": []
+   },
+   {
+    "id": "q3",
+    "question": "How reliable is the benchmark evidence?",
+    "why": "",
+    "queries": []
+   },
+   {
+    "id": "q4",
+    "question": "Do models use long contexts well, and what replaces attention?",
+    "why": "",
+    "queries": []
+   }
+  ]
+ },
+ "sources": [
+  "openalex",
+  "semanticscholar",
+  "arxiv"
+ ],
+ "bottomLine": "Approximate sub-quadratic attention has not, on balance, beaten standard attention: across shared benchmarks no single efficient variant wins consistently, and the methods that changed practice compute exact attention more efficiently instead [2, 1]. Confidence is moderate, because most head-to-head comparisons use small models and synthetic tasks, and attention-free models such as Mamba are now a serious alternative [2, 3].",
+ "report": "## Bottom line\nApproximate sub-quadratic attention has not, on balance, beaten standard attention: across shared benchmarks no single efficient variant wins consistently, and the methods that changed practice compute exact attention more efficiently instead [2, 1]. Confidence is moderate, because most head-to-head comparisons use small models and synthetic tasks, and attention-free models such as Mamba are now a serious alternative [2, 3].\n\n## Background\nStandard self-attention compares every token with every other token, so its cost grows with the square of the sequence length [16]. Between 2019 and 2021 a wave of methods tried to break that bottleneck with fixed sparse patterns, hashing, low-rank projections and kernel approximations [13, 7, 8, 6]. A second wave kept attention exact and attacked the memory traffic and hardware layout that make it slow in practice [1, 11, 12].\n\n## What the evidence says\n### Approximations can match full attention on their chosen tasks\nEach family reports parity with full attention on the tasks it was designed for. Reformer matches Transformer quality while using far less memory on long sequences [7], Linformer reports results on par with a standard Transformer at linear cost [8], and Performer gives a provably accurate estimate of softmax attention in linear time [6]. Longformer and Big Bird go further on long documents, beating RoBERTa-style baselines on question answering and long-document tasks [4, 5]. Big Bird also proves that its sparse pattern keeps the expressive power of full attention [5]. Linear attention matches softmax attention on large-scale language modelling [9].\n\n### The real speedups came from exact, hardware-aware attention\nFlashAttention computes exact attention with far fewer reads and writes to GPU memory and reports a 3× training speedup on GPT-2 and 2.4× on Long Range Arena [1]. Its authors note that many approximate methods reduce theoretical compute without delivering wall-clock speedups [1]. FlashAttention-2 roughly doubles that speed again, reaching 50 to 73 percent of an A100's theoretical peak [11]. At inference, sharing keys and values across heads cuts the memory traffic of decoding with little quality loss [14, 15], and Ring Attention removes the context-length limit entirely [12].\n\n### Longer windows do not guarantee that context is used\nModels are best at using information at the very start or end of their context and markedly worse in the middle, even models built for long inputs [10]. This means efficiency results measured as perplexity or throughput say little about whether long contexts are actually exploited [10, 2].\n\n## Where studies disagree\nThe main disagreement is between method papers and independent benchmarks. Method papers typically report parity on their own tasks [7, 8, 6], while Long Range Arena, which ran ten efficient models under the same conditions, found no consistent winner and differences in speed and memory far larger than differences in accuracy [2]. Every model in that benchmark failed the hardest 16K-token task, Path-X, which FlashAttention later solved with exact attention [2, 1]. Attention-free state-space models add a further challenge: Mamba reports five times the inference throughput of Transformers and matches Transformers twice its size [3].\n\n## How good is the evidence\nMost comparisons rely on models far smaller than those used today, and many use synthetic or byte-level tasks rather than natural language at scale [2]. Speedups are hardware-specific and often reported on a single GPU generation [1, 11]. Theoretical guarantees exist for some methods, such as Big Bird's expressivity and Performer's estimation error, but they do not translate directly into task quality [5, 6].\n\n## Open questions\n- Do the quality findings for approximate attention hold at tens of billions of parameters, where few were tested [2]?\n- Can state-space and hybrid models match attention on precise retrieval from long contexts [3, 10]?\n- How should long-context ability be measured beyond perplexity, given position effects [10]?\n\n## Conclusion\nFor long-context language modelling, the evidence favours exact attention made efficient through IO-aware kernels, shared key-value heads and distribution across devices over approximate sub-quadratic attention [1, 11, 15, 12]. Approximations remain useful when memory is the binding constraint, and selective state-space models are the strongest emerging alternative [5, 3].",
+ "findings": [
+  {
+   "subq": "q1",
+   "question": "Do sub-quadratic approximations match full attention quality?",
+   "consensus": "mixed",
+   "summary": "Method papers report parity on their own tasks, but the one controlled comparison finds no consistent winner and every approximate model fails the hardest long-range task.",
+   "findings": [
+    {
+     "claim": "Sparse attention with global tokens beats dense baselines on long-document question answering.",
+     "support": [
+      4,
+      5
+     ],
+     "contradict": [],
+     "evidence": "",
+     "strength": "moderate"
+    },
+    {
+     "claim": "Low-rank and kernel approximations reach parity with full attention on the tasks their authors chose.",
+     "support": [
+      8,
+      6,
+      7
+     ],
+     "contradict": [
+      2
+     ],
+     "evidence": "",
+     "strength": "moderate"
+    },
+    {
+     "claim": "Under identical conditions, no efficient variant is best across tasks.",
+     "support": [
+      2
+     ],
+     "contradict": [],
+     "evidence": "",
+     "strength": "strong"
+    },
+    {
+     "claim": "Approximate models fail very long-range reasoning that exact attention can solve.",
+     "support": [
+      2,
+      1
+     ],
+     "contradict": [],
+     "evidence": "",
+     "strength": "moderate"
+    }
+   ]
+  },
+  {
+   "subq": "q2",
+   "question": "Where do practical speed and memory gains come from?",
+   "consensus": "strong",
+   "summary": "Wall-clock gains come mainly from computing exact attention with less memory traffic, sharing key-value heads at inference, and spreading attention across devices.",
+   "findings": [
+    {
+     "claim": "IO-aware exact attention gives large real training speedups.",
+     "support": [
+      1,
+      11
+     ],
+     "contradict": [],
+     "evidence": "",
+     "strength": "strong"
+    },
+    {
+     "claim": "Reduced FLOPs from approximation often do not become wall-clock speedups.",
+     "support": [
+      1
+     ],
+     "contradict": [
+      7
+     ],
+     "evidence": "",
+     "strength": "moderate"
+    },
+    {
+     "claim": "Sharing keys and values across heads speeds decoding with little quality loss.",
+     "support": [
+      14,
+      15
+     ],
+     "contradict": [],
+     "evidence": "",
+     "strength": "strong"
+    },
+    {
+     "claim": "Distributing exact attention across devices extends context with device count.",
+     "support": [
+      12
+     ],
+     "contradict": [],
+     "evidence": "",
+     "strength": "moderate"
+    }
+   ]
+  },
+  {
+   "subq": "q3",
+   "question": "How reliable is the benchmark evidence?",
+   "consensus": "weak",
+   "summary": "Evidence rests largely on small models, synthetic tasks and single hardware generations, and long-context benchmarks rarely test whether information is actually used.",
+   "findings": [
+    {
+     "claim": "Controlled benchmarks show speed differences far larger than accuracy differences.",
+     "support": [
+      2
+     ],
+     "contradict": [],
+     "evidence": "",
+     "strength": "moderate"
+    },
+    {
+     "claim": "Throughput and perplexity gains do not show that long contexts are used well.",
+     "support": [
+      10
+     ],
+     "contradict": [],
+     "evidence": "",
+     "strength": "moderate"
+    }
+   ]
+  },
+  {
+   "subq": "q4",
+   "question": "Do models use long contexts well, and what replaces attention?",
+   "consensus": "moderate",
+   "summary": "Models under-use the middle of long contexts, and selective state-space models now rival Transformers at language modelling with linear scaling.",
+   "findings": [
+    {
+     "claim": "Models use information at the start and end of the context far better than the middle.",
+     "support": [
+      10
+     ],
+     "contradict": [],
+     "evidence": "",
+     "strength": "strong"
+    },
+    {
+     "claim": "Selective state-space models match Transformers twice their size with higher throughput.",
+     "support": [
+      3
+     ],
+     "contradict": [],
+     "evidence": "",
+     "strength": "moderate"
+    }
+   ]
+  }
+ ],
+ "audit": {
+  "totalCited": 26,
+  "checked": 26,
+  "supported": 24,
+  "partial": 1,
+  "unsupported": 1,
+  "score": 94,
+  "items": [
+   {
+    "key": "approximate sub quadratic attention has not on balance beaten standard attention across sh",
+    "sentence": "Approximate sub-quadratic attention has not, on balance, beaten standard attention: across shared benchmarks no single efficient variant wins consistently, and the methods that changed practice compute exact attention more efficiently instead [2, 1].",
+    "refs": [
+     2,
+     1
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 2,
+    "evidence": [
+     {
+      "n": 2,
+      "text": "Long Range Arena: A Benchmark for Efficient Transformers. A shared benchmark of 1K to 16K-token tasks comparing ten efficient Transformers; no model dominates, and every model fails the hardest task, Path-X. No single model best across tasks; speed and memory differ far more than accuracy; all models at chance on Path-X."
+     },
+     {
+      "n": 1,
+      "text": "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness. Computes exact attention with far fewer GPU memory reads and writes by tiling, and argues approximate methods often fail to deliver real wall-clock speedups. 15% faster BERT-large training, 3× on GPT-2, 2.4× on Long Range Arena; first better-than-chance Path-X (61.4%) and Path-256 (63.1%)."
+     }
+    ]
+   },
+   {
+    "key": "confidence is moderate because most head to head comparisons use small models and syntheti",
+    "sentence": "Confidence is moderate, because most head-to-head comparisons use small models and synthetic tasks, and attention-free models such as Mamba are now a serious alternative [2, 3].",
+    "refs": [
+     2,
+     3
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 2,
+    "evidence": [
+     {
+      "n": 2,
+      "text": "Long Range Arena: A Benchmark for Efficient Transformers. A shared benchmark of 1K to 16K-token tasks comparing ten efficient Transformers; no model dominates, and every model fails the hardest task, Path-X. No single model best across tasks; speed and memory differ far more than accuracy; all models at chance on Path-X."
+     },
+     {
+      "n": 3,
+      "text": "Mamba: Linear-Time Sequence Modeling with Selective State Spaces. A selective state-space model without attention that scales linearly with length and matches Transformers twice its size on language modelling. 5× higher inference throughput than Transformers; Mamba-3B outperforms same-size Transformers and matches ones twice its size."
+     }
+    ]
+   },
+   {
+    "key": "standard self attention compares every token with every other token so its cost grows with",
+    "sentence": "Standard self-attention compares every token with every other token, so its cost grows with the square of the sequence length [16].",
+    "refs": [
+     16
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 16,
+    "evidence": [
+     {
+      "n": 16,
+      "text": "Attention Is All You Need. Introduces the Transformer, built entirely on attention; self-attention cost grows with the square of sequence length. State of the art translation at lower training cost; per-layer self-attention complexity O(n²·d)."
+     }
+    ]
+   },
+   {
+    "key": "between 2019 and 2021 a wave of methods tried to break that bottleneck with fixed sparse p",
+    "sentence": "Between 2019 and 2021 a wave of methods tried to break that bottleneck with fixed sparse patterns, hashing, low-rank projections and kernel approximations [13, 7, 8, 6].",
+    "refs": [
+     13,
+     7,
+     8,
+     6
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 13,
+    "evidence": [
+     {
+      "n": 13,
+      "text": "Generating Long Sequences with Sparse Transformers. Factorised sparse attention cuts cost to O(n√n) and models images, audio and text from raw bytes. New state of the art density modelling on enwik8, CIFAR-10 and ImageNet-64 at the time."
+     },
+     {
+      "n": 7,
+      "text": "Reformer: The Efficient Transformer. Replaces dot-product attention with locality-sensitive hashing and uses reversible layers, matching Transformer quality with much less memory. On par with Transformers while far more memory-efficient and faster on long sequences."
+     }
+    ]
+   },
+   {
+    "key": "a second wave kept attention exact and attacked the memory traffic and hardware layout tha",
+    "sentence": "A second wave kept attention exact and attacked the memory traffic and hardware layout that make it slow in practice [1, 11, 12].",
+    "refs": [
+     1,
+     11,
+     12
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 1,
+    "evidence": [
+     {
+      "n": 1,
+      "text": "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness. Computes exact attention with far fewer GPU memory reads and writes by tiling, and argues approximate methods often fail to deliver real wall-clock speedups. 15% faster BERT-large training, 3× on GPT-2, 2.4× on Long Range Arena; first better-than-chance Path-X (61.4%) and Path-256 (63.1%)."
+     },
+     {
+      "n": 11,
+      "text": "FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning. Reworks how FlashAttention splits work across GPU threads, roughly doubling its speed. About 2× faster than FlashAttention, reaching 50–73% of theoretical peak throughput on A100."
+     }
+    ]
+   },
+   {
+    "key": "reformer matches transformer quality while using far less memory on long sequences linform",
+    "sentence": "Reformer matches Transformer quality while using far less memory on long sequences [7], Linformer reports results on par with a standard Transformer at linear cost [8], and Performer gives a provably accurate estimate of softmax attention in linear time [6].",
+    "refs": [
+     7,
+     8,
+     6
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 7,
+    "evidence": [
+     {
+      "n": 7,
+      "text": "Reformer: The Efficient Transformer. Replaces dot-product attention with locality-sensitive hashing and uses reversible layers, matching Transformer quality with much less memory. On par with Transformers while far more memory-efficient and faster on long sequences."
+     },
+     {
+      "n": 8,
+      "text": "Linformer: Self-Attention with Linear Complexity. Shows attention matrices are approximately low-rank and projects keys and values down to a fixed size, giving linear cost. Performs on par with standard Transformers on the reported tasks, with linear time and memory."
+     }
+    ]
+   },
+   {
+    "key": "longformer and big bird go further on long documents beating roberta style baselines on qu",
+    "sentence": "Longformer and Big Bird go further on long documents, beating RoBERTa-style baselines on question answering and long-document tasks [4, 5].",
+    "refs": [
+     4,
+     5
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 4,
+    "evidence": [
+     {
+      "n": 4,
+      "text": "Longformer: The Long-Document Transformer. Combines a sliding local window with task-specific global attention so cost grows linearly, and beats RoBERTa on long-document tasks. State of the art on text8 and enwik8 at the time; outperforms RoBERTa on long-document tasks including WikiHop and TriviaQA."
+     },
+     {
+      "n": 5,
+      "text": "Big Bird: Transformers for Longer Sequences. Sparse attention mixing random, windowed and global tokens; proves it keeps the expressive power of full attention and handles sequences up to 8× longer. Universal approximator and Turing complete; 8× longer sequences on similar hardware; gains on QA and summarisation."
+     }
+    ]
+   },
+   {
+    "key": "big bird also proves that its sparse pattern keeps the expressive power of full attention",
+    "sentence": "Big Bird also proves that its sparse pattern keeps the expressive power of full attention [5].",
+    "refs": [
+     5
+    ],
+    "verdict": "supported",
+    "note": "The paper proves universality and Turing completeness.",
+    "bestRef": 5,
+    "evidence": [
+     {
+      "n": 5,
+      "text": "Big Bird: Transformers for Longer Sequences. Sparse attention mixing random, windowed and global tokens; proves it keeps the expressive power of full attention and handles sequences up to 8× longer. Universal approximator and Turing complete; 8× longer sequences on similar hardware; gains on QA and summarisation."
+     }
+    ]
+   },
+   {
+    "key": "linear attention matches softmax attention on large scale language modelling",
+    "sentence": "Linear attention matches softmax attention on large-scale language modelling [9].",
+    "refs": [
+     9
+    ],
+    "verdict": "unsupported",
+    "note": "The paper tests image generation and speech, not large-scale language modelling.",
+    "bestRef": 9,
+    "evidence": [
+     {
+      "n": 9,
+      "text": "Transformers are RNNs: Fast Autoregressive Transformers with Linear Attention. Writes attention as a kernel feature-map product, making it linear and recurrent; autoregressive generation becomes dramatically faster. Comparable performance to softmax attention on the tasks tested; up to 4000× faster autoregressive prediction of very long sequences."
+     }
+    ]
+   },
+   {
+    "key": "flashattention computes exact attention with far fewer reads and writes to gpu memory and ",
+    "sentence": "FlashAttention computes exact attention with far fewer reads and writes to GPU memory and reports a 3× training speedup on GPT-2 and 2.4× on Long Range Arena [1].",
+    "refs": [
+     1
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 1,
+    "evidence": [
+     {
+      "n": 1,
+      "text": "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness. Computes exact attention with far fewer GPU memory reads and writes by tiling, and argues approximate methods often fail to deliver real wall-clock speedups. 15% faster BERT-large training, 3× on GPT-2, 2.4× on Long Range Arena; first better-than-chance Path-X (61.4%) and Path-256 (63.1%)."
+     }
+    ]
+   },
+   {
+    "key": "its authors note that many approximate methods reduce theoretical compute without deliveri",
+    "sentence": "Its authors note that many approximate methods reduce theoretical compute without delivering wall-clock speedups [1].",
+    "refs": [
+     1
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 1,
+    "evidence": [
+     {
+      "n": 1,
+      "text": "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness. Computes exact attention with far fewer GPU memory reads and writes by tiling, and argues approximate methods often fail to deliver real wall-clock speedups. 15% faster BERT-large training, 3× on GPT-2, 2.4× on Long Range Arena; first better-than-chance Path-X (61.4%) and Path-256 (63.1%)."
+     }
+    ]
+   },
+   {
+    "key": "flashattention 2 roughly doubles that speed again reaching 50 to 73 percent of an a100 s t",
+    "sentence": "FlashAttention-2 roughly doubles that speed again, reaching 50 to 73 percent of an A100's theoretical peak [11].",
+    "refs": [
+     11
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 11,
+    "evidence": [
+     {
+      "n": 11,
+      "text": "FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning. Reworks how FlashAttention splits work across GPU threads, roughly doubling its speed. About 2× faster than FlashAttention, reaching 50–73% of theoretical peak throughput on A100."
+     }
+    ]
+   },
+   {
+    "key": "at inference sharing keys and values across heads cuts the memory traffic of decoding with",
+    "sentence": "At inference, sharing keys and values across heads cuts the memory traffic of decoding with little quality loss [14, 15], and Ring Attention removes the context-length limit entirely [12].",
+    "refs": [
+     14,
+     15,
+     12
+    ],
+    "verdict": "partial",
+    "note": "Context grows with the number of devices; it is not unlimited.",
+    "bestRef": 12,
+    "evidence": [
+     {
+      "n": 14,
+      "text": "Fast Transformer Decoding: One Write-Head is All You Need. Multi-query attention shares one set of keys and values across heads, cutting the memory traffic that bottlenecks decoding. Much faster incremental decoding with only minor quality loss."
+     },
+     {
+      "n": 15,
+      "text": "GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints. Grouped-query attention sits between multi-head and multi-query attention and can be added to existing checkpoints cheaply. Quality close to multi-head attention at speed comparable to multi-query; uptraining uses 5% of original pretraining compute."
+     }
+    ]
+   },
+   {
+    "key": "models are best at using information at the very start or end of their context and markedl",
+    "sentence": "Models are best at using information at the very start or end of their context and markedly worse in the middle, even models built for long inputs [10].",
+    "refs": [
+     10
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 10,
+    "evidence": [
+     {
+      "n": 10,
+      "text": "Lost in the Middle: How Language Models Use Long Contexts. Language models use information best at the start or end of their context and much worse in the middle, even models built for long contexts. Accuracy follows a U-shape over position; performance drops significantly when the answer sits mid-context."
+     }
+    ]
+   },
+   {
+    "key": "this means efficiency results measured as perplexity or throughput say little about whethe",
+    "sentence": "This means efficiency results measured as perplexity or throughput say little about whether long contexts are actually exploited [10, 2].",
+    "refs": [
+     10,
+     2
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 10,
+    "evidence": [
+     {
+      "n": 10,
+      "text": "Lost in the Middle: How Language Models Use Long Contexts. Language models use information best at the start or end of their context and much worse in the middle, even models built for long contexts. Accuracy follows a U-shape over position; performance drops significantly when the answer sits mid-context."
+     },
+     {
+      "n": 2,
+      "text": "Long Range Arena: A Benchmark for Efficient Transformers. A shared benchmark of 1K to 16K-token tasks comparing ten efficient Transformers; no model dominates, and every model fails the hardest task, Path-X. No single model best across tasks; speed and memory differ far more than accuracy; all models at chance on Path-X."
+     }
+    ]
+   },
+   {
+    "key": "method papers typically report parity on their own tasks while long range arena which ran ",
+    "sentence": "Method papers typically report parity on their own tasks [7, 8, 6], while Long Range Arena, which ran ten efficient models under the same conditions, found no consistent winner and differences in speed and memory far larger than differences in accuracy [2].",
+    "refs": [
+     7,
+     8,
+     6,
+     2
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 7,
+    "evidence": [
+     {
+      "n": 7,
+      "text": "Reformer: The Efficient Transformer. Replaces dot-product attention with locality-sensitive hashing and uses reversible layers, matching Transformer quality with much less memory. On par with Transformers while far more memory-efficient and faster on long sequences."
+     },
+     {
+      "n": 8,
+      "text": "Linformer: Self-Attention with Linear Complexity. Shows attention matrices are approximately low-rank and projects keys and values down to a fixed size, giving linear cost. Performs on par with standard Transformers on the reported tasks, with linear time and memory."
+     }
+    ]
+   },
+   {
+    "key": "every model in that benchmark failed the hardest 16k token task path x which flashattentio",
+    "sentence": "Every model in that benchmark failed the hardest 16K-token task, Path-X, which FlashAttention later solved with exact attention [2, 1].",
+    "refs": [
+     2,
+     1
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 2,
+    "evidence": [
+     {
+      "n": 2,
+      "text": "Long Range Arena: A Benchmark for Efficient Transformers. A shared benchmark of 1K to 16K-token tasks comparing ten efficient Transformers; no model dominates, and every model fails the hardest task, Path-X. No single model best across tasks; speed and memory differ far more than accuracy; all models at chance on Path-X."
+     },
+     {
+      "n": 1,
+      "text": "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness. Computes exact attention with far fewer GPU memory reads and writes by tiling, and argues approximate methods often fail to deliver real wall-clock speedups. 15% faster BERT-large training, 3× on GPT-2, 2.4× on Long Range Arena; first better-than-chance Path-X (61.4%) and Path-256 (63.1%)."
+     }
+    ]
+   },
+   {
+    "key": "attention free state space models add a further challenge mamba reports five times the inf",
+    "sentence": "Attention-free state-space models add a further challenge: Mamba reports five times the inference throughput of Transformers and matches Transformers twice its size [3].",
+    "refs": [
+     3
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 3,
+    "evidence": [
+     {
+      "n": 3,
+      "text": "Mamba: Linear-Time Sequence Modeling with Selective State Spaces. A selective state-space model without attention that scales linearly with length and matches Transformers twice its size on language modelling. 5× higher inference throughput than Transformers; Mamba-3B outperforms same-size Transformers and matches ones twice its size."
+     }
+    ]
+   },
+   {
+    "key": "most comparisons rely on models far smaller than those used today and many use synthetic o",
+    "sentence": "Most comparisons rely on models far smaller than those used today, and many use synthetic or byte-level tasks rather than natural language at scale [2].",
+    "refs": [
+     2
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 2,
+    "evidence": [
+     {
+      "n": 2,
+      "text": "Long Range Arena: A Benchmark for Efficient Transformers. A shared benchmark of 1K to 16K-token tasks comparing ten efficient Transformers; no model dominates, and every model fails the hardest task, Path-X. No single model best across tasks; speed and memory differ far more than accuracy; all models at chance on Path-X."
+     }
+    ]
+   },
+   {
+    "key": "speedups are hardware specific and often reported on a single gpu generation",
+    "sentence": "Speedups are hardware-specific and often reported on a single GPU generation [1, 11].",
+    "refs": [
+     1,
+     11
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 1,
+    "evidence": [
+     {
+      "n": 1,
+      "text": "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness. Computes exact attention with far fewer GPU memory reads and writes by tiling, and argues approximate methods often fail to deliver real wall-clock speedups. 15% faster BERT-large training, 3× on GPT-2, 2.4× on Long Range Arena; first better-than-chance Path-X (61.4%) and Path-256 (63.1%)."
+     },
+     {
+      "n": 11,
+      "text": "FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning. Reworks how FlashAttention splits work across GPU threads, roughly doubling its speed. About 2× faster than FlashAttention, reaching 50–73% of theoretical peak throughput on A100."
+     }
+    ]
+   },
+   {
+    "key": "theoretical guarantees exist for some methods such as big bird s expressivity and performe",
+    "sentence": "Theoretical guarantees exist for some methods, such as Big Bird's expressivity and Performer's estimation error, but they do not translate directly into task quality [5, 6].",
+    "refs": [
+     5,
+     6
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 5,
+    "evidence": [
+     {
+      "n": 5,
+      "text": "Big Bird: Transformers for Longer Sequences. Sparse attention mixing random, windowed and global tokens; proves it keeps the expressive power of full attention and handles sequences up to 8× longer. Universal approximator and Turing complete; 8× longer sequences on similar hardware; gains on QA and summarisation."
+     },
+     {
+      "n": 6,
+      "text": "Rethinking Attention with Performers. Approximates softmax attention with random features (FAVOR+) in linear time and space, with guarantees on estimation error. Unbiased or nearly unbiased estimate of attention with low variance; competitive results on the tasks tested."
+     }
+    ]
+   },
+   {
+    "key": "do the quality findings for approximate attention hold at tens of billions of parameters w",
+    "sentence": "Do the quality findings for approximate attention hold at tens of billions of parameters, where few were tested [2]?",
+    "refs": [
+     2
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 2,
+    "evidence": [
+     {
+      "n": 2,
+      "text": "Long Range Arena: A Benchmark for Efficient Transformers. A shared benchmark of 1K to 16K-token tasks comparing ten efficient Transformers; no model dominates, and every model fails the hardest task, Path-X. No single model best across tasks; speed and memory differ far more than accuracy; all models at chance on Path-X."
+     }
+    ]
+   },
+   {
+    "key": "can state space and hybrid models match attention on precise retrieval from long contexts",
+    "sentence": "Can state-space and hybrid models match attention on precise retrieval from long contexts [3, 10]?",
+    "refs": [
+     3,
+     10
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 3,
+    "evidence": [
+     {
+      "n": 3,
+      "text": "Mamba: Linear-Time Sequence Modeling with Selective State Spaces. A selective state-space model without attention that scales linearly with length and matches Transformers twice its size on language modelling. 5× higher inference throughput than Transformers; Mamba-3B outperforms same-size Transformers and matches ones twice its size."
+     },
+     {
+      "n": 10,
+      "text": "Lost in the Middle: How Language Models Use Long Contexts. Language models use information best at the start or end of their context and much worse in the middle, even models built for long contexts. Accuracy follows a U-shape over position; performance drops significantly when the answer sits mid-context."
+     }
+    ]
+   },
+   {
+    "key": "how should long context ability be measured beyond perplexity given position effects",
+    "sentence": "How should long-context ability be measured beyond perplexity, given position effects [10]?",
+    "refs": [
+     10
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 10,
+    "evidence": [
+     {
+      "n": 10,
+      "text": "Lost in the Middle: How Language Models Use Long Contexts. Language models use information best at the start or end of their context and much worse in the middle, even models built for long contexts. Accuracy follows a U-shape over position; performance drops significantly when the answer sits mid-context."
+     }
+    ]
+   },
+   {
+    "key": "for long context language modelling the evidence favours exact attention made efficient th",
+    "sentence": "For long-context language modelling, the evidence favours exact attention made efficient through IO-aware kernels, shared key-value heads and distribution across devices over approximate sub-quadratic attention [1, 11, 15, 12].",
+    "refs": [
+     1,
+     11,
+     15,
+     12
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 1,
+    "evidence": [
+     {
+      "n": 1,
+      "text": "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness. Computes exact attention with far fewer GPU memory reads and writes by tiling, and argues approximate methods often fail to deliver real wall-clock speedups. 15% faster BERT-large training, 3× on GPT-2, 2.4× on Long Range Arena; first better-than-chance Path-X (61.4%) and Path-256 (63.1%)."
+     },
+     {
+      "n": 11,
+      "text": "FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning. Reworks how FlashAttention splits work across GPU threads, roughly doubling its speed. About 2× faster than FlashAttention, reaching 50–73% of theoretical peak throughput on A100."
+     }
+    ]
+   },
+   {
+    "key": "approximations remain useful when memory is the binding constraint and selective state spa",
+    "sentence": "Approximations remain useful when memory is the binding constraint, and selective state-space models are the strongest emerging alternative [5, 3].",
+    "refs": [
+     5,
+     3
+    ],
+    "verdict": "supported",
+    "note": "The cited passages state this directly.",
+    "bestRef": 5,
+    "evidence": [
+     {
+      "n": 5,
+      "text": "Big Bird: Transformers for Longer Sequences. Sparse attention mixing random, windowed and global tokens; proves it keeps the expressive power of full attention and handles sequences up to 8× longer. Universal approximator and Turing complete; 8× longer sequences on similar hardware; gains on QA and summarisation."
+     },
+     {
+      "n": 3,
+      "text": "Mamba: Linear-Time Sequence Modeling with Selective State Spaces. A selective state-space model without attention that scales linearly with length and matches Transformers twice its size on language modelling. 5× higher inference throughput than Transformers; Mamba-3B outperforms same-size Transformers and matches ones twice its size."
+     }
+    ]
+   }
+  ]
+ },
+ "podcast": {
+  "title": "Is cheaper attention actually better?",
+  "lines": [
+   {
+    "speaker": "mira",
+    "text": "Every AI lab wants models that read whole books at once. The problem is attention, which gets quadratically more expensive as the text gets longer. So, Theo, did all those clever efficient-attention tricks actually fix that?"
+   },
+   {
+    "speaker": "theo",
+    "text": "Short answer: not the way people expected. There was this wave around 2020: Reformer, Linformer, Performer, Longformer, Big Bird. Each paper said, look, we match a normal Transformer and we're way cheaper."
+   },
+   {
+    "speaker": "mira",
+    "text": "That sounds like a win. What went wrong?"
+   },
+   {
+    "speaker": "theo",
+    "text": "When Tay and colleagues put ten of them side by side in Long Range Arena, under the same conditions, no single method won across the board. The speed and memory differences were huge, but accuracy barely separated them."
+   },
+   {
+    "speaker": "mira",
+    "text": "So they were all roughly as good, just cheaper? That still sounds fine to me."
+   },
+   {
+    "speaker": "theo",
+    "text": "Here's the catch. Every one of them failed the hardest task, Path-X, sixteen thousand tokens long. They were at chance. And the thing that eventually cracked it wasn't an approximation at all."
+   },
+   {
+    "speaker": "mira",
+    "text": "Let me guess. FlashAttention?"
+   },
+   {
+    "speaker": "theo",
+    "text": "Right. Dao and colleagues in 2022 kept attention exact and just stopped wasting time shuffling data around the GPU's memory. Three times faster training on GPT-2, and the first model to beat chance on Path-X."
+   },
+   {
+    "speaker": "mira",
+    "text": "Okay, but I want to push on that. Isn't FlashAttention just better engineering? That's not a scientific argument against sparse attention."
+   },
+   {
+    "speaker": "theo",
+    "text": "Fair, and I think that's the honest reading. The approximations cut theoretical compute, but on real hardware that often didn't turn into wall-clock speed. Engineering is where the gains actually showed up."
+   },
+   {
+    "speaker": "mira",
+    "text": "And there's a line in the review that got flagged, right? Something about linear attention?"
+   },
+   {
+    "speaker": "theo",
+    "text": "Yes, good catch. The review claimed linear attention matches softmax on large-scale language modelling, and the check marked it unsupported. Katharopoulos and colleagues tested images and speech, not big language models."
+   },
+   {
+    "speaker": "mira",
+    "text": "So even if a model can take in a million tokens, does it actually use them?"
+   },
+   {
+    "speaker": "theo",
+    "text": "That's the other big finding. Liu and colleagues showed models are great with information at the start or end of the context and much worse in the middle. Long windows aren't the same as good reading."
+   },
+   {
+    "speaker": "mira",
+    "text": "And Mamba? People keep telling me attention is dead."
+   },
+   {
+    "speaker": "theo",
+    "text": "Mamba is the most serious challenger. Gu and Dao report five times the inference throughput and match Transformers twice its size. But the open question is precise retrieval from long contexts, and that's not settled."
+   },
+   {
+    "speaker": "mira",
+    "text": "So the takeaway?"
+   },
+   {
+    "speaker": "theo",
+    "text": "Make exact attention efficient first. Use approximations when memory is the hard limit. And keep a close eye on state-space models."
+   }
+  ]
+ },
+ "coverageHistory": [
+  {
+   "round": 1,
+   "coverage": {
+    "q1": 9,
+    "q2": 4,
+    "q3": 2,
+    "q4": 3
+   },
+   "gaps": [
+    "q3",
+    "q4"
+   ],
+   "relevant": 24,
+   "total": 131,
+   "continue": true,
+   "followups": [
+    {
+     "subq": "q3",
+     "q": "long range arena efficient transformer comparison"
+    },
+    {
+     "subq": "q4",
+     "q": "selective state space language model"
+    }
+   ],
+   "note": "Few independent benchmark comparisons yet."
+  },
+  {
+   "round": 2,
+   "coverage": {
+    "q1": 11,
+    "q2": 7,
+    "q3": 4,
+    "q4": 6
+   },
+   "gaps": [],
+   "relevant": 41,
+   "total": 214,
+   "continue": false,
+   "followups": [],
+   "note": ""
+  }
+ ],
+ "papers": [
+  {
+   "key": "arxiv:2205.14135",
+   "n": 1,
+   "title": "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness",
+   "authors": [
+    "Tri Dao",
+    "Daniel Y. Fu",
+    "Stefano Ermon",
+    "Atri Rudra",
+    "Christopher Ré"
+   ],
+   "year": 2022,
+   "venue": "NeurIPS",
+   "doi": "",
+   "url": "https://arxiv.org/abs/2205.14135",
+   "pdfUrl": "https://arxiv.org/pdf/2205.14135",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "semanticscholar",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "2205.14135"
+   },
+   "subq": [
+    "q2",
+    "q1"
+   ],
+   "score": 10,
+   "kind": "method paper with benchmarks",
+   "reason": "",
+   "included": true,
+   "hasFullText": true,
+   "pages": null,
+   "abstract": "Computes exact attention with far fewer GPU memory reads and writes by tiling, and argues approximate methods often fail to deliver real wall-clock speedups.",
+   "tldr": "",
+   "card": {
+    "tldr": "Computes exact attention with far fewer GPU memory reads and writes by tiling, and argues approximate methods often fail to deliver real wall-clock speedups.",
+    "studyType": "method paper with benchmarks",
+    "method": "IO-aware tiled exact attention; block-sparse variant",
+    "data": "BERT-large, GPT-2, Long Range Arena, Path-X/Path-256",
+    "keyResult": "15% faster BERT-large training, 3× on GPT-2, 2.4× on Long Range Arena; first better-than-chance Path-X (61.4%) and Path-256 (63.1%)",
+    "limitations": "Requires custom CUDA kernels per GPU architecture",
+    "stance": "challenges"
+   }
+  },
+  {
+   "key": "arxiv:2011.04006",
+   "n": 2,
+   "title": "Long Range Arena: A Benchmark for Efficient Transformers",
+   "authors": [
+    "Yi Tay",
+    "Mostafa Dehghani",
+    "Samira Abnar",
+    "Yikang Shen",
+    "Dara Bahri",
+    "Philip Pham",
+    "Jinfeng Rao",
+    "Liu Yang",
+    "Sebastian Ruder",
+    "Donald Metzler"
+   ],
+   "year": 2021,
+   "venue": "ICLR",
+   "doi": "",
+   "url": "https://arxiv.org/abs/2011.04006",
+   "pdfUrl": "https://arxiv.org/pdf/2011.04006",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "semanticscholar",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "2011.04006"
+   },
+   "subq": [
+    "q3",
+    "q1"
+   ],
+   "score": 10,
+   "kind": "benchmark evaluation",
+   "reason": "",
+   "included": true,
+   "hasFullText": true,
+   "pages": null,
+   "abstract": "A shared benchmark of 1K to 16K-token tasks comparing ten efficient Transformers; no model dominates, and every model fails the hardest task, Path-X.",
+   "tldr": "",
+   "card": {
+    "tldr": "A shared benchmark of 1K to 16K-token tasks comparing ten efficient Transformers; no model dominates, and every model fails the hardest task, Path-X.",
+    "studyType": "benchmark evaluation",
+    "method": "Same tasks and budgets for ten efficient attention models",
+    "data": "ListOps, byte-level text, retrieval, image, Pathfinder, Path-X",
+    "keyResult": "No single model best across tasks; speed and memory differ far more than accuracy; all models at chance on Path-X",
+    "limitations": "Synthetic-leaning tasks; small models; limited tuning",
+    "stance": "mixed"
+   }
+  },
+  {
+   "key": "arxiv:2312.00752",
+   "n": 3,
+   "title": "Mamba: Linear-Time Sequence Modeling with Selective State Spaces",
+   "authors": [
+    "Albert Gu",
+    "Tri Dao"
+   ],
+   "year": 2023,
+   "venue": "arXiv",
+   "doi": "",
+   "url": "https://arxiv.org/abs/2312.00752",
+   "pdfUrl": "https://arxiv.org/pdf/2312.00752",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "semanticscholar",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "2312.00752"
+   },
+   "subq": [
+    "q4"
+   ],
+   "score": 9,
+   "kind": "method paper with scaling experiments",
+   "reason": "",
+   "included": true,
+   "hasFullText": true,
+   "pages": null,
+   "abstract": "A selective state-space model without attention that scales linearly with length and matches Transformers twice its size on language modelling.",
+   "tldr": "",
+   "card": {
+    "tldr": "A selective state-space model without attention that scales linearly with length and matches Transformers twice its size on language modelling.",
+    "studyType": "method paper with scaling experiments",
+    "method": "Input-dependent state-space layers with a hardware-aware scan",
+    "data": "Language, audio and genomics benchmarks",
+    "keyResult": "5× higher inference throughput than Transformers; Mamba-3B outperforms same-size Transformers and matches ones twice its size",
+    "limitations": "Largest models only a few billion parameters",
+    "stance": "mixed"
+   }
+  },
+  {
+   "key": "arxiv:2004.05150",
+   "n": 4,
+   "title": "Longformer: The Long-Document Transformer",
+   "authors": [
+    "Iz Beltagy",
+    "Matthew E. Peters",
+    "Arman Cohan"
+   ],
+   "year": 2020,
+   "venue": "arXiv",
+   "doi": "",
+   "url": "https://arxiv.org/abs/2004.05150",
+   "pdfUrl": "https://arxiv.org/pdf/2004.05150",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "semanticscholar",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "2004.05150"
+   },
+   "subq": [
+    "q1"
+   ],
+   "score": 9,
+   "kind": "method paper",
+   "reason": "",
+   "included": true,
+   "hasFullText": true,
+   "pages": null,
+   "abstract": "Combines a sliding local window with task-specific global attention so cost grows linearly, and beats RoBERTa on long-document tasks.",
+   "tldr": "",
+   "card": {
+    "tldr": "Combines a sliding local window with task-specific global attention so cost grows linearly, and beats RoBERTa on long-document tasks.",
+    "studyType": "method paper",
+    "method": "Windowed plus global attention; pretraining from RoBERTa",
+    "data": "text8, enwik8, WikiHop, TriviaQA",
+    "keyResult": "State of the art on text8 and enwik8 at the time; outperforms RoBERTa on long-document tasks including WikiHop and TriviaQA",
+    "limitations": "Global tokens chosen per task by hand",
+    "stance": "supports"
+   }
+  },
+  {
+   "key": "arxiv:2007.14062",
+   "n": 5,
+   "title": "Big Bird: Transformers for Longer Sequences",
+   "authors": [
+    "Manzil Zaheer",
+    "Guru Guruganesh",
+    "Avinava Dubey",
+    "Joshua Ainslie",
+    "Chris Alberti",
+    "Santiago Ontanon",
+    "Philip Pham",
+    "Anirudh Ravula",
+    "Qifan Wang",
+    "Li Yang",
+    "Amr Ahmed"
+   ],
+   "year": 2020,
+   "venue": "NeurIPS",
+   "doi": "",
+   "url": "https://arxiv.org/abs/2007.14062",
+   "pdfUrl": "https://arxiv.org/pdf/2007.14062",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "semanticscholar",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "2007.14062"
+   },
+   "subq": [
+    "q1"
+   ],
+   "score": 9,
+   "kind": "method paper with theory",
+   "reason": "",
+   "included": true,
+   "hasFullText": true,
+   "pages": null,
+   "abstract": "Sparse attention mixing random, windowed and global tokens; proves it keeps the expressive power of full attention and handles sequences up to 8× longer.",
+   "tldr": "",
+   "card": {
+    "tldr": "Sparse attention mixing random, windowed and global tokens; proves it keeps the expressive power of full attention and handles sequences up to 8× longer.",
+    "studyType": "method paper with theory",
+    "method": "Random + window + global sparse attention; universality proofs",
+    "data": "Question answering, summarisation, genomics",
+    "keyResult": "Universal approximator and Turing complete; 8× longer sequences on similar hardware; gains on QA and summarisation",
+    "limitations": "Theory does not bound the number of layers needed",
+    "stance": "supports"
+   }
+  },
+  {
+   "key": "arxiv:2009.14794",
+   "n": 6,
+   "title": "Rethinking Attention with Performers",
+   "authors": [
+    "Krzysztof Choromanski",
+    "Valerii Likhosherstov",
+    "David Dohan",
+    "Xingyou Song",
+    "Andreea Gane",
+    "Tamas Sarlos",
+    "Peter Hawkins",
+    "Jared Davis",
+    "Afroz Mohiuddin",
+    "Lukasz Kaiser",
+    "David Belanger",
+    "Lucy Colwell",
+    "Adrian Weller"
+   ],
+   "year": 2021,
+   "venue": "ICLR",
+   "doi": "",
+   "url": "https://arxiv.org/abs/2009.14794",
+   "pdfUrl": "https://arxiv.org/pdf/2009.14794",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "semanticscholar",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "2009.14794"
+   },
+   "subq": [
+    "q1"
+   ],
+   "score": 8,
+   "kind": "method paper with theory",
+   "reason": "",
+   "included": true,
+   "hasFullText": true,
+   "pages": null,
+   "abstract": "Approximates softmax attention with random features (FAVOR+) in linear time and space, with guarantees on estimation error.",
+   "tldr": "",
+   "card": {
+    "tldr": "Approximates softmax attention with random features (FAVOR+) in linear time and space, with guarantees on estimation error.",
+    "studyType": "method paper with theory",
+    "method": "Positive orthogonal random features for the softmax kernel",
+    "data": "Pixel prediction, text, protein sequences",
+    "keyResult": "Unbiased or nearly unbiased estimate of attention with low variance; competitive results on the tasks tested",
+    "limitations": "Approximation quality depends on the number of random features",
+    "stance": "supports"
+   }
+  },
+  {
+   "key": "arxiv:2001.04451",
+   "n": 7,
+   "title": "Reformer: The Efficient Transformer",
+   "authors": [
+    "Nikita Kitaev",
+    "Łukasz Kaiser",
+    "Anselm Levskaya"
+   ],
+   "year": 2020,
+   "venue": "ICLR",
+   "doi": "",
+   "url": "https://arxiv.org/abs/2001.04451",
+   "pdfUrl": "https://arxiv.org/pdf/2001.04451",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "semanticscholar",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "2001.04451"
+   },
+   "subq": [
+    "q1",
+    "q2"
+   ],
+   "score": 8,
+   "kind": "method paper",
+   "reason": "",
+   "included": true,
+   "hasFullText": true,
+   "pages": null,
+   "abstract": "Replaces dot-product attention with locality-sensitive hashing and uses reversible layers, matching Transformer quality with much less memory.",
+   "tldr": "",
+   "card": {
+    "tldr": "Replaces dot-product attention with locality-sensitive hashing and uses reversible layers, matching Transformer quality with much less memory.",
+    "studyType": "method paper",
+    "method": "LSH attention (O(L log L)) and reversible residual layers",
+    "data": "enwik8, imagenet64 generation",
+    "keyResult": "On par with Transformers while far more memory-efficient and faster on long sequences",
+    "limitations": "Hashing adds variance; gains appear mainly at long lengths",
+    "stance": "supports"
+   }
+  },
+  {
+   "key": "arxiv:2006.04768",
+   "n": 8,
+   "title": "Linformer: Self-Attention with Linear Complexity",
+   "authors": [
+    "Sinong Wang",
+    "Belinda Z. Li",
+    "Madian Khabsa",
+    "Han Fang",
+    "Hao Ma"
+   ],
+   "year": 2020,
+   "venue": "arXiv",
+   "doi": "",
+   "url": "https://arxiv.org/abs/2006.04768",
+   "pdfUrl": "https://arxiv.org/pdf/2006.04768",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "semanticscholar",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "2006.04768"
+   },
+   "subq": [
+    "q1"
+   ],
+   "score": 7,
+   "kind": "method paper",
+   "reason": "",
+   "included": true,
+   "hasFullText": true,
+   "pages": null,
+   "abstract": "Shows attention matrices are approximately low-rank and projects keys and values down to a fixed size, giving linear cost.",
+   "tldr": "",
+   "card": {
+    "tldr": "Shows attention matrices are approximately low-rank and projects keys and values down to a fixed size, giving linear cost.",
+    "studyType": "method paper",
+    "method": "Learned low-rank projection of keys and values",
+    "data": "GLUE-style classification after pretraining",
+    "keyResult": "Performs on par with standard Transformers on the reported tasks, with linear time and memory",
+    "limitations": "Fixed projection does not suit causal (autoregressive) decoding",
+    "stance": "supports"
+   }
+  },
+  {
+   "key": "arxiv:2006.16236",
+   "n": 9,
+   "title": "Transformers are RNNs: Fast Autoregressive Transformers with Linear Attention",
+   "authors": [
+    "Angelos Katharopoulos",
+    "Apoorv Vyas",
+    "Nikolaos Pappas",
+    "François Fleuret"
+   ],
+   "year": 2020,
+   "venue": "ICML",
+   "doi": "",
+   "url": "https://arxiv.org/abs/2006.16236",
+   "pdfUrl": "https://arxiv.org/pdf/2006.16236",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "semanticscholar",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "2006.16236"
+   },
+   "subq": [
+    "q1",
+    "q2"
+   ],
+   "score": 8,
+   "kind": "method paper",
+   "reason": "",
+   "included": true,
+   "hasFullText": false,
+   "pages": null,
+   "abstract": "Writes attention as a kernel feature-map product, making it linear and recurrent; autoregressive generation becomes dramatically faster.",
+   "tldr": "",
+   "card": {
+    "tldr": "Writes attention as a kernel feature-map product, making it linear and recurrent; autoregressive generation becomes dramatically faster.",
+    "studyType": "method paper",
+    "method": "Kernelised linear attention computed recurrently",
+    "data": "Image generation (MNIST, CIFAR-10), speech recognition",
+    "keyResult": "Comparable performance to softmax attention on the tasks tested; up to 4000× faster autoregressive prediction of very long sequences",
+    "limitations": "Not evaluated on large-scale language modelling",
+    "stance": "mixed"
+   }
+  },
+  {
+   "key": "arxiv:2307.03172",
+   "n": 10,
+   "title": "Lost in the Middle: How Language Models Use Long Contexts",
+   "authors": [
+    "Nelson F. Liu",
+    "Kevin Lin",
+    "John Hewitt",
+    "Ashwin Paranjape",
+    "Michele Bevilacqua",
+    "Fabio Petroni",
+    "Percy Liang"
+   ],
+   "year": 2024,
+   "venue": "TACL",
+   "doi": "",
+   "url": "https://arxiv.org/abs/2307.03172",
+   "pdfUrl": "https://arxiv.org/pdf/2307.03172",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "semanticscholar",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "2307.03172"
+   },
+   "subq": [
+    "q4",
+    "q3"
+   ],
+   "score": 9,
+   "kind": "empirical evaluation",
+   "reason": "",
+   "included": true,
+   "hasFullText": false,
+   "pages": null,
+   "abstract": "Language models use information best at the start or end of their context and much worse in the middle, even models built for long contexts.",
+   "tldr": "",
+   "card": {
+    "tldr": "Language models use information best at the start or end of their context and much worse in the middle, even models built for long contexts.",
+    "studyType": "empirical evaluation",
+    "method": "Vary the position of relevant information in multi-document QA and key-value retrieval",
+    "data": "Open and closed long-context language models",
+    "keyResult": "Accuracy follows a U-shape over position; performance drops significantly when the answer sits mid-context",
+    "limitations": "Two task families; models of 2023",
+    "stance": "challenges"
+   }
+  },
+  {
+   "key": "arxiv:2307.08691",
+   "n": 11,
+   "title": "FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning",
+   "authors": [
+    "Tri Dao"
+   ],
+   "year": 2023,
+   "venue": "arXiv",
+   "doi": "",
+   "url": "https://arxiv.org/abs/2307.08691",
+   "pdfUrl": "https://arxiv.org/pdf/2307.08691",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "semanticscholar",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "2307.08691"
+   },
+   "subq": [
+    "q2"
+   ],
+   "score": 8,
+   "kind": "method paper with benchmarks",
+   "reason": "",
+   "included": true,
+   "hasFullText": false,
+   "pages": null,
+   "abstract": "Reworks how FlashAttention splits work across GPU threads, roughly doubling its speed.",
+   "tldr": "",
+   "card": {
+    "tldr": "Reworks how FlashAttention splits work across GPU threads, roughly doubling its speed.",
+    "studyType": "method paper with benchmarks",
+    "method": "Better parallelism and work partitioning for exact attention",
+    "data": "GPT-style training on A100 GPUs",
+    "keyResult": "About 2× faster than FlashAttention, reaching 50–73% of theoretical peak throughput on A100",
+    "limitations": "Hardware-specific engineering",
+    "stance": "challenges"
+   }
+  },
+  {
+   "key": "arxiv:2310.01889",
+   "n": 12,
+   "title": "Ring Attention with Blockwise Transformers for Near-Infinite Context",
+   "authors": [
+    "Hao Liu",
+    "Matei Zaharia",
+    "Pieter Abbeel"
+   ],
+   "year": 2023,
+   "venue": "arXiv",
+   "doi": "",
+   "url": "https://arxiv.org/abs/2310.01889",
+   "pdfUrl": "https://arxiv.org/pdf/2310.01889",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "semanticscholar",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "2310.01889"
+   },
+   "subq": [
+    "q2"
+   ],
+   "score": 7,
+   "kind": "systems method paper",
+   "reason": "",
+   "included": true,
+   "hasFullText": false,
+   "pages": null,
+   "abstract": "Splits exact blockwise attention across devices in a ring, overlapping communication with compute, so context length grows with the number of devices.",
+   "tldr": "",
+   "card": {
+    "tldr": "Splits exact blockwise attention across devices in a ring, overlapping communication with compute, so context length grows with the number of devices.",
+    "studyType": "systems method paper",
+    "method": "Blockwise attention distributed across devices in a ring",
+    "data": "Language modelling and reinforcement learning",
+    "keyResult": "Context length scales with device count without approximating attention",
+    "limitations": "Needs many accelerators; communication overhead at small scale",
+    "stance": "challenges"
+   }
+  },
+  {
+   "key": "arxiv:1904.10509",
+   "n": 13,
+   "title": "Generating Long Sequences with Sparse Transformers",
+   "authors": [
+    "Rewon Child",
+    "Scott Gray",
+    "Alec Radford",
+    "Ilya Sutskever"
+   ],
+   "year": 2019,
+   "venue": "arXiv",
+   "doi": "",
+   "url": "https://arxiv.org/abs/1904.10509",
+   "pdfUrl": "https://arxiv.org/pdf/1904.10509",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "semanticscholar",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "1904.10509"
+   },
+   "subq": [
+    "q1"
+   ],
+   "score": 7,
+   "kind": "method paper",
+   "reason": "",
+   "included": true,
+   "hasFullText": false,
+   "pages": null,
+   "abstract": "Factorised sparse attention cuts cost to O(n√n) and models images, audio and text from raw bytes.",
+   "tldr": "",
+   "card": {
+    "tldr": "Factorised sparse attention cuts cost to O(n√n) and models images, audio and text from raw bytes.",
+    "studyType": "method paper",
+    "method": "Fixed strided and local sparse attention patterns",
+    "data": "enwik8, CIFAR-10, ImageNet-64",
+    "keyResult": "New state of the art density modelling on enwik8, CIFAR-10 and ImageNet-64 at the time",
+    "limitations": "Fixed patterns chosen per modality",
+    "stance": "supports"
+   }
+  },
+  {
+   "key": "arxiv:1911.02150",
+   "n": 14,
+   "title": "Fast Transformer Decoding: One Write-Head is All You Need",
+   "authors": [
+    "Noam Shazeer"
+   ],
+   "year": 2019,
+   "venue": "arXiv",
+   "doi": "",
+   "url": "https://arxiv.org/abs/1911.02150",
+   "pdfUrl": "https://arxiv.org/pdf/1911.02150",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "semanticscholar",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "1911.02150"
+   },
+   "subq": [
+    "q2"
+   ],
+   "score": 7,
+   "kind": "method paper",
+   "reason": "",
+   "included": true,
+   "hasFullText": false,
+   "pages": null,
+   "abstract": "Multi-query attention shares one set of keys and values across heads, cutting the memory traffic that bottlenecks decoding.",
+   "tldr": "",
+   "card": {
+    "tldr": "Multi-query attention shares one set of keys and values across heads, cutting the memory traffic that bottlenecks decoding.",
+    "studyType": "method paper",
+    "method": "Single shared key/value head (multi-query attention)",
+    "data": "Translation and language modelling",
+    "keyResult": "Much faster incremental decoding with only minor quality loss",
+    "limitations": "Small quality drop; trained from scratch",
+    "stance": "context"
+   }
+  },
+  {
+   "key": "arxiv:2305.13245",
+   "n": 15,
+   "title": "GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints",
+   "authors": [
+    "Joshua Ainslie",
+    "James Lee-Thorp",
+    "Michiel de Jong",
+    "Yury Zemlyanskiy",
+    "Federico Lebrón",
+    "Sumit Sanghai"
+   ],
+   "year": 2023,
+   "venue": "EMNLP",
+   "doi": "",
+   "url": "https://arxiv.org/abs/2305.13245",
+   "pdfUrl": "https://arxiv.org/pdf/2305.13245",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "semanticscholar",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "2305.13245"
+   },
+   "subq": [
+    "q2"
+   ],
+   "score": 7,
+   "kind": "method paper",
+   "reason": "",
+   "included": true,
+   "hasFullText": false,
+   "pages": null,
+   "abstract": "Grouped-query attention sits between multi-head and multi-query attention and can be added to existing checkpoints cheaply.",
+   "tldr": "",
+   "card": {
+    "tldr": "Grouped-query attention sits between multi-head and multi-query attention and can be added to existing checkpoints cheaply.",
+    "studyType": "method paper",
+    "method": "Uptraining multi-head checkpoints into grouped-query attention",
+    "data": "T5 models on summarisation, translation, QA",
+    "keyResult": "Quality close to multi-head attention at speed comparable to multi-query; uptraining uses 5% of original pretraining compute",
+    "limitations": "Evaluated on encoder-decoder T5",
+    "stance": "context"
+   }
+  },
+  {
+   "key": "arxiv:1706.03762",
+   "n": 16,
+   "title": "Attention Is All You Need",
+   "authors": [
+    "Ashish Vaswani",
+    "Noam Shazeer",
+    "Niki Parmar",
+    "Jakob Uszkoreit",
+    "Llion Jones",
+    "Aidan N. Gomez",
+    "Łukasz Kaiser",
+    "Illia Polosukhin"
+   ],
+   "year": 2017,
+   "venue": "NeurIPS",
+   "doi": "",
+   "url": "https://arxiv.org/abs/1706.03762",
+   "pdfUrl": "https://arxiv.org/pdf/1706.03762",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "semanticscholar",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "1706.03762"
+   },
+   "subq": [
+    "q2"
+   ],
+   "score": 7,
+   "kind": "architecture paper",
+   "reason": "",
+   "included": true,
+   "hasFullText": false,
+   "pages": null,
+   "abstract": "Introduces the Transformer, built entirely on attention; self-attention cost grows with the square of sequence length.",
+   "tldr": "",
+   "card": {
+    "tldr": "Introduces the Transformer, built entirely on attention; self-attention cost grows with the square of sequence length.",
+    "studyType": "architecture paper",
+    "method": "Multi-head scaled dot-product self-attention",
+    "data": "WMT translation",
+    "keyResult": "State of the art translation at lower training cost; per-layer self-attention complexity O(n²·d)",
+    "limitations": "Quadratic cost limits sequence length",
+    "stance": "context"
+   }
+  },
+  {
+   "key": "arxiv:2111.00396",
+   "n": null,
+   "title": "Efficiently Modeling Long Sequences with Structured State Spaces",
+   "authors": [
+    "Albert Gu",
+    "Karan Goel",
+    "Christopher Ré"
+   ],
+   "year": 2022,
+   "venue": "ICLR",
+   "doi": "",
+   "url": "https://arxiv.org/abs/2111.00396",
+   "pdfUrl": "https://arxiv.org/pdf/2111.00396",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "2111.00396"
+   },
+   "subq": [
+    "q4"
+   ],
+   "score": 7,
+   "kind": "",
+   "reason": "Relevant background; left out to keep the review focused",
+   "included": false,
+   "hasFullText": false,
+   "card": null,
+   "abstract": "",
+   "tldr": ""
+  },
+  {
+   "key": "arxiv:2212.14052",
+   "n": null,
+   "title": "Hungry Hungry Hippos: Towards Language Modeling with State Space Models",
+   "authors": [
+    "Daniel Y. Fu",
+    "Tri Dao",
+    "Khaled K. Saab",
+    "Armin W. Thomas",
+    "Atri Rudra",
+    "Christopher Ré"
+   ],
+   "year": 2023,
+   "venue": "ICLR",
+   "doi": "",
+   "url": "https://arxiv.org/abs/2212.14052",
+   "pdfUrl": "https://arxiv.org/pdf/2212.14052",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "2212.14052"
+   },
+   "subq": [
+    "q4"
+   ],
+   "score": 7,
+   "kind": "",
+   "reason": "Relevant background; left out to keep the review focused",
+   "included": false,
+   "hasFullText": false,
+   "card": null,
+   "abstract": "",
+   "tldr": ""
+  },
+  {
+   "key": "arxiv:2302.10866",
+   "n": null,
+   "title": "Hyena Hierarchy: Towards Larger Convolutional Language Models",
+   "authors": [
+    "Michael Poli",
+    "Stefano Massaroli",
+    "Eric Nguyen",
+    "Daniel Y. Fu",
+    "Tri Dao",
+    "Stephen Baccus",
+    "Yoshua Bengio",
+    "Stefano Ermon",
+    "Christopher Ré"
+   ],
+   "year": 2023,
+   "venue": "ICML",
+   "doi": "",
+   "url": "https://arxiv.org/abs/2302.10866",
+   "pdfUrl": "https://arxiv.org/pdf/2302.10866",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "2302.10866"
+   },
+   "subq": [
+    "q4"
+   ],
+   "score": 6,
+   "kind": "",
+   "reason": "Relevant background; left out to keep the review focused",
+   "included": false,
+   "hasFullText": false,
+   "card": null,
+   "abstract": "",
+   "tldr": ""
+  },
+  {
+   "key": "arxiv:1901.02860",
+   "n": null,
+   "title": "Transformer-XL: Attentive Language Models Beyond a Fixed-Length Context",
+   "authors": [
+    "Zihang Dai",
+    "Zhilin Yang",
+    "Yiming Yang",
+    "Jaime Carbonell",
+    "Quoc V. Le",
+    "Ruslan Salakhutdinov"
+   ],
+   "year": 2019,
+   "venue": "ACL",
+   "doi": "",
+   "url": "https://arxiv.org/abs/1901.02860",
+   "pdfUrl": "https://arxiv.org/pdf/1901.02860",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "1901.02860"
+   },
+   "subq": [
+    "q1"
+   ],
+   "score": 6,
+   "kind": "",
+   "reason": "Relevant background; left out to keep the review focused",
+   "included": false,
+   "hasFullText": false,
+   "card": null,
+   "abstract": "",
+   "tldr": ""
+  },
+  {
+   "key": "arxiv:2009.06732",
+   "n": null,
+   "title": "Efficient Transformers: A Survey",
+   "authors": [
+    "Yi Tay",
+    "Mostafa Dehghani",
+    "Dara Bahri",
+    "Donald Metzler"
+   ],
+   "year": 2022,
+   "venue": "ACM Computing Surveys",
+   "doi": "",
+   "url": "https://arxiv.org/abs/2009.06732",
+   "pdfUrl": "https://arxiv.org/pdf/2009.06732",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "2009.06732"
+   },
+   "subq": [
+    "q3"
+   ],
+   "score": 7,
+   "kind": "",
+   "reason": "Relevant background; left out to keep the review focused",
+   "included": false,
+   "hasFullText": false,
+   "card": null,
+   "abstract": "",
+   "tldr": ""
+  },
+  {
+   "key": "arxiv:2307.08621",
+   "n": null,
+   "title": "Retentive Network: A Successor to Transformer for Large Language Models",
+   "authors": [
+    "Yutao Sun",
+    "Li Dong",
+    "Shaohan Huang",
+    "Shuming Ma",
+    "Yuqing Xia",
+    "Jilong Xue",
+    "Jianyong Wang",
+    "Furu Wei"
+   ],
+   "year": 2023,
+   "venue": "arXiv",
+   "doi": "",
+   "url": "https://arxiv.org/abs/2307.08621",
+   "pdfUrl": "https://arxiv.org/pdf/2307.08621",
+   "citedBy": null,
+   "sources": [
+    "openalex",
+    "arxiv"
+   ],
+   "ids": {
+    "arxiv": "2307.08621"
+   },
+   "subq": [
+    "q4"
+   ],
+   "score": 6,
+   "kind": "",
+   "reason": "Relevant background; left out to keep the review focused",
+   "included": false,
+   "hasFullText": false,
+   "card": null,
+   "abstract": "",
+   "tldr": ""
+  }
+ ],
+ "references": [
+  "arxiv:2205.14135",
+  "arxiv:2011.04006",
+  "arxiv:2312.00752",
+  "arxiv:2004.05150",
+  "arxiv:2007.14062",
+  "arxiv:2009.14794",
+  "arxiv:2001.04451",
+  "arxiv:2006.04768",
+  "arxiv:2006.16236",
+  "arxiv:2307.03172",
+  "arxiv:2307.08691",
+  "arxiv:2310.01889",
+  "arxiv:1904.10509",
+  "arxiv:1911.02150",
+  "arxiv:2305.13245",
+  "arxiv:1706.03762"
+ ],
+ "graph": {
+  "nodes": [
+   "arxiv:2205.14135",
+   "arxiv:2011.04006",
+   "arxiv:2312.00752",
+   "arxiv:2004.05150",
+   "arxiv:2007.14062",
+   "arxiv:2009.14794",
+   "arxiv:2001.04451",
+   "arxiv:2006.04768",
+   "arxiv:2006.16236",
+   "arxiv:2307.03172",
+   "arxiv:2307.08691",
+   "arxiv:2310.01889",
+   "arxiv:1904.10509",
+   "arxiv:1911.02150",
+   "arxiv:2305.13245",
+   "arxiv:1706.03762",
+   "arxiv:2111.00396",
+   "arxiv:2212.14052",
+   "arxiv:2302.10866",
+   "arxiv:1901.02860",
+   "arxiv:2009.06732",
+   "arxiv:2307.08621"
+  ],
+  "edges": [
+   {
+    "source": "arxiv:2004.05150",
+    "target": "arxiv:1904.10509",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2004.05150",
+    "target": "arxiv:2001.04451",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2007.14062",
+    "target": "arxiv:2004.05150",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2007.14062",
+    "target": "arxiv:1904.10509",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2009.14794",
+    "target": "arxiv:2001.04451",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2009.14794",
+    "target": "arxiv:2006.04768",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2009.14794",
+    "target": "arxiv:1904.10509",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2011.04006",
+    "target": "arxiv:2004.05150",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2011.04006",
+    "target": "arxiv:2007.14062",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2011.04006",
+    "target": "arxiv:2009.14794",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2011.04006",
+    "target": "arxiv:2001.04451",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2011.04006",
+    "target": "arxiv:2006.04768",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2011.04006",
+    "target": "arxiv:2006.16236",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2011.04006",
+    "target": "arxiv:1904.10509",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2205.14135",
+    "target": "arxiv:2001.04451",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2205.14135",
+    "target": "arxiv:2006.04768",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2205.14135",
+    "target": "arxiv:2009.14794",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2205.14135",
+    "target": "arxiv:2004.05150",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2205.14135",
+    "target": "arxiv:2007.14062",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2205.14135",
+    "target": "arxiv:2011.04006",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2307.08691",
+    "target": "arxiv:2205.14135",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2310.01889",
+    "target": "arxiv:2205.14135",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2312.00752",
+    "target": "arxiv:2205.14135",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2312.00752",
+    "target": "arxiv:2006.16236",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2305.13245",
+    "target": "arxiv:1911.02150",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2006.16236",
+    "target": "arxiv:2001.04451",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2006.04768",
+    "target": "arxiv:2001.04451",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2307.03172",
+    "target": "arxiv:1706.03762",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2004.05150",
+    "target": "arxiv:1706.03762",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2007.14062",
+    "target": "arxiv:1706.03762",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2001.04451",
+    "target": "arxiv:1706.03762",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:1911.02150",
+    "target": "arxiv:1706.03762",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:1904.10509",
+    "target": "arxiv:1706.03762",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2205.14135",
+    "target": "arxiv:2307.08691",
+    "kind": "similar",
+    "weight": 0.08
+   },
+   {
+    "source": "arxiv:2011.04006",
+    "target": "arxiv:2009.06732",
+    "kind": "similar",
+    "weight": 0.1
+   },
+   {
+    "source": "arxiv:2011.04006",
+    "target": "arxiv:2004.05150",
+    "kind": "similar",
+    "weight": 0.09
+   },
+   {
+    "source": "arxiv:2312.00752",
+    "target": "arxiv:2212.14052",
+    "kind": "similar",
+    "weight": 0.15
+   },
+   {
+    "source": "arxiv:2312.00752",
+    "target": "arxiv:2009.14794",
+    "kind": "similar",
+    "weight": 0.13
+   },
+   {
+    "source": "arxiv:2004.05150",
+    "target": "arxiv:1706.03762",
+    "kind": "similar",
+    "weight": 0.14
+   },
+   {
+    "source": "arxiv:2004.05150",
+    "target": "arxiv:1904.10509",
+    "kind": "similar",
+    "weight": 0.1
+   },
+   {
+    "source": "arxiv:2007.14062",
+    "target": "arxiv:1904.10509",
+    "kind": "similar",
+    "weight": 0.14
+   },
+   {
+    "source": "arxiv:2009.14794",
+    "target": "arxiv:2312.00752",
+    "kind": "similar",
+    "weight": 0.13
+   },
+   {
+    "source": "arxiv:2001.04451",
+    "target": "arxiv:1911.02150",
+    "kind": "similar",
+    "weight": 0.08
+   },
+   {
+    "source": "arxiv:2006.04768",
+    "target": "arxiv:1706.03762",
+    "kind": "similar",
+    "weight": 0.1
+   },
+   {
+    "source": "arxiv:2006.04768",
+    "target": "arxiv:2312.00752",
+    "kind": "similar",
+    "weight": 0.08
+   },
+   {
+    "source": "arxiv:2006.16236",
+    "target": "arxiv:2312.00752",
+    "kind": "similar",
+    "weight": 0.08
+   },
+   {
+    "source": "arxiv:2307.03172",
+    "target": "arxiv:1901.02860",
+    "kind": "similar",
+    "weight": 0.14
+   },
+   {
+    "source": "arxiv:2307.03172",
+    "target": "arxiv:2302.10866",
+    "kind": "similar",
+    "weight": 0.09
+   },
+   {
+    "source": "arxiv:2307.08691",
+    "target": "arxiv:2310.01889",
+    "kind": "similar",
+    "weight": 0.1
+   },
+   {
+    "source": "arxiv:2307.08691",
+    "target": "arxiv:2205.14135",
+    "kind": "similar",
+    "weight": 0.08
+   },
+   {
+    "source": "arxiv:2310.01889",
+    "target": "arxiv:1706.03762",
+    "kind": "similar",
+    "weight": 0.11
+   },
+   {
+    "source": "arxiv:2310.01889",
+    "target": "arxiv:2307.08691",
+    "kind": "similar",
+    "weight": 0.1
+   },
+   {
+    "source": "arxiv:1904.10509",
+    "target": "arxiv:2007.14062",
+    "kind": "similar",
+    "weight": 0.14
+   },
+   {
+    "source": "arxiv:1904.10509",
+    "target": "arxiv:2004.05150",
+    "kind": "similar",
+    "weight": 0.1
+   },
+   {
+    "source": "arxiv:1911.02150",
+    "target": "arxiv:1706.03762",
+    "kind": "similar",
+    "weight": 0.16
+   },
+   {
+    "source": "arxiv:1911.02150",
+    "target": "arxiv:2305.13245",
+    "kind": "similar",
+    "weight": 0.15
+   },
+   {
+    "source": "arxiv:2305.13245",
+    "target": "arxiv:1911.02150",
+    "kind": "similar",
+    "weight": 0.15
+   },
+   {
+    "source": "arxiv:2305.13245",
+    "target": "arxiv:2307.08621",
+    "kind": "similar",
+    "weight": 0.09
+   },
+   {
+    "source": "arxiv:1706.03762",
+    "target": "arxiv:1911.02150",
+    "kind": "similar",
+    "weight": 0.16
+   },
+   {
+    "source": "arxiv:1706.03762",
+    "target": "arxiv:2004.05150",
+    "kind": "similar",
+    "weight": 0.14
+   },
+   {
+    "source": "arxiv:2111.00396",
+    "target": "arxiv:2212.14052",
+    "kind": "similar",
+    "weight": 0.15
+   },
+   {
+    "source": "arxiv:2111.00396",
+    "target": "arxiv:2312.00752",
+    "kind": "similar",
+    "weight": 0.12
+   },
+   {
+    "source": "arxiv:2212.14052",
+    "target": "arxiv:2302.10866",
+    "kind": "similar",
+    "weight": 0.25
+   },
+   {
+    "source": "arxiv:2212.14052",
+    "target": "arxiv:2312.00752",
+    "kind": "similar",
+    "weight": 0.15
+   },
+   {
+    "source": "arxiv:2302.10866",
+    "target": "arxiv:2212.14052",
+    "kind": "similar",
+    "weight": 0.25
+   },
+   {
+    "source": "arxiv:2302.10866",
+    "target": "arxiv:2307.08621",
+    "kind": "similar",
+    "weight": 0.17
+   },
+   {
+    "source": "arxiv:1901.02860",
+    "target": "arxiv:2307.08621",
+    "kind": "similar",
+    "weight": 0.25
+   },
+   {
+    "source": "arxiv:1901.02860",
+    "target": "arxiv:2302.10866",
+    "kind": "similar",
+    "weight": 0.15
+   },
+   {
+    "source": "arxiv:2009.06732",
+    "target": "arxiv:2011.04006",
+    "kind": "similar",
+    "weight": 0.1
+   },
+   {
+    "source": "arxiv:2307.08621",
+    "target": "arxiv:1901.02860",
+    "kind": "similar",
+    "weight": 0.25
+   },
+   {
+    "source": "arxiv:2307.08621",
+    "target": "arxiv:2302.10866",
+    "kind": "similar",
+    "weight": 0.17
+   },
+   {
+    "source": "arxiv:2212.14052",
+    "target": "arxiv:2205.14135",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2302.10866",
+    "target": "arxiv:2205.14135",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2111.00396",
+    "target": "arxiv:2006.16236",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2009.06732",
+    "target": "arxiv:2011.04006",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2009.06732",
+    "target": "arxiv:2001.04451",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:1901.02860",
+    "target": "arxiv:1706.03762",
+    "kind": "cites",
+    "weight": 1
+   },
+   {
+    "source": "arxiv:2307.08621",
+    "target": "arxiv:2006.16236",
+    "kind": "cites",
+    "weight": 1
+   }
+  ]
+ },
+ "chunks": [
+  {
+   "id": "1:abs",
+   "n": 1,
+   "text": "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness. Computes exact attention with far fewer GPU memory reads and writes by tiling, and argues approximate methods often fail to deliver real wall-clock speedups. Method: IO-aware tiled exact attention; block-sparse variant. Data: BERT-large, GPT-2, Long Range Arena, Path-X/Path-256. Result: 15% faster BERT-large training, 3× on GPT-2, 2.4× on Long Range Arena; first better-than-chance Path-X (61.4%) and Path-256 (63.1%). Limitations: Requires custom CUDA kernels per GPU architecture."
+  },
+  {
+   "id": "2:abs",
+   "n": 2,
+   "text": "Long Range Arena: A Benchmark for Efficient Transformers. A shared benchmark of 1K to 16K-token tasks comparing ten efficient Transformers; no model dominates, and every model fails the hardest task, Path-X. Method: Same tasks and budgets for ten efficient attention models. Data: ListOps, byte-level text, retrieval, image, Pathfinder, Path-X. Result: No single model best across tasks; speed and memory differ far more than accuracy; all models at chance on Path-X. Limitations: Synthetic-leaning tasks; small models; limited tuning."
+  },
+  {
+   "id": "3:abs",
+   "n": 3,
+   "text": "Mamba: Linear-Time Sequence Modeling with Selective State Spaces. A selective state-space model without attention that scales linearly with length and matches Transformers twice its size on language modelling. Method: Input-dependent state-space layers with a hardware-aware scan. Data: Language, audio and genomics benchmarks. Result: 5× higher inference throughput than Transformers; Mamba-3B outperforms same-size Transformers and matches ones twice its size. Limitations: Largest models only a few billion parameters."
+  },
+  {
+   "id": "4:abs",
+   "n": 4,
+   "text": "Longformer: The Long-Document Transformer. Combines a sliding local window with task-specific global attention so cost grows linearly, and beats RoBERTa on long-document tasks. Method: Windowed plus global attention; pretraining from RoBERTa. Data: text8, enwik8, WikiHop, TriviaQA. Result: State of the art on text8 and enwik8 at the time; outperforms RoBERTa on long-document tasks including WikiHop and TriviaQA. Limitations: Global tokens chosen per task by hand."
+  },
+  {
+   "id": "5:abs",
+   "n": 5,
+   "text": "Big Bird: Transformers for Longer Sequences. Sparse attention mixing random, windowed and global tokens; proves it keeps the expressive power of full attention and handles sequences up to 8× longer. Method: Random + window + global sparse attention; universality proofs. Data: Question answering, summarisation, genomics. Result: Universal approximator and Turing complete; 8× longer sequences on similar hardware; gains on QA and summarisation. Limitations: Theory does not bound the number of layers needed."
+  },
+  {
+   "id": "6:abs",
+   "n": 6,
+   "text": "Rethinking Attention with Performers. Approximates softmax attention with random features (FAVOR+) in linear time and space, with guarantees on estimation error. Method: Positive orthogonal random features for the softmax kernel. Data: Pixel prediction, text, protein sequences. Result: Unbiased or nearly unbiased estimate of attention with low variance; competitive results on the tasks tested. Limitations: Approximation quality depends on the number of random features."
+  },
+  {
+   "id": "7:abs",
+   "n": 7,
+   "text": "Reformer: The Efficient Transformer. Replaces dot-product attention with locality-sensitive hashing and uses reversible layers, matching Transformer quality with much less memory. Method: LSH attention (O(L log L)) and reversible residual layers. Data: enwik8, imagenet64 generation. Result: On par with Transformers while far more memory-efficient and faster on long sequences. Limitations: Hashing adds variance; gains appear mainly at long lengths."
+  },
+  {
+   "id": "8:abs",
+   "n": 8,
+   "text": "Linformer: Self-Attention with Linear Complexity. Shows attention matrices are approximately low-rank and projects keys and values down to a fixed size, giving linear cost. Method: Learned low-rank projection of keys and values. Data: GLUE-style classification after pretraining. Result: Performs on par with standard Transformers on the reported tasks, with linear time and memory. Limitations: Fixed projection does not suit causal (autoregressive) decoding."
+  },
+  {
+   "id": "9:abs",
+   "n": 9,
+   "text": "Transformers are RNNs: Fast Autoregressive Transformers with Linear Attention. Writes attention as a kernel feature-map product, making it linear and recurrent; autoregressive generation becomes dramatically faster. Method: Kernelised linear attention computed recurrently. Data: Image generation (MNIST, CIFAR-10), speech recognition. Result: Comparable performance to softmax attention on the tasks tested; up to 4000× faster autoregressive prediction of very long sequences. Limitations: Not evaluated on large-scale language modelling."
+  },
+  {
+   "id": "10:abs",
+   "n": 10,
+   "text": "Lost in the Middle: How Language Models Use Long Contexts. Language models use information best at the start or end of their context and much worse in the middle, even models built for long contexts. Method: Vary the position of relevant information in multi-document QA and key-value retrieval. Data: Open and closed long-context language models. Result: Accuracy follows a U-shape over position; performance drops significantly when the answer sits mid-context. Limitations: Two task families; models of 2023."
+  },
+  {
+   "id": "11:abs",
+   "n": 11,
+   "text": "FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning. Reworks how FlashAttention splits work across GPU threads, roughly doubling its speed. Method: Better parallelism and work partitioning for exact attention. Data: GPT-style training on A100 GPUs. Result: About 2× faster than FlashAttention, reaching 50–73% of theoretical peak throughput on A100. Limitations: Hardware-specific engineering."
+  },
+  {
+   "id": "12:abs",
+   "n": 12,
+   "text": "Ring Attention with Blockwise Transformers for Near-Infinite Context. Splits exact blockwise attention across devices in a ring, overlapping communication with compute, so context length grows with the number of devices. Method: Blockwise attention distributed across devices in a ring. Data: Language modelling and reinforcement learning. Result: Context length scales with device count without approximating attention. Limitations: Needs many accelerators; communication overhead at small scale."
+  },
+  {
+   "id": "13:abs",
+   "n": 13,
+   "text": "Generating Long Sequences with Sparse Transformers. Factorised sparse attention cuts cost to O(n√n) and models images, audio and text from raw bytes. Method: Fixed strided and local sparse attention patterns. Data: enwik8, CIFAR-10, ImageNet-64. Result: New state of the art density modelling on enwik8, CIFAR-10 and ImageNet-64 at the time. Limitations: Fixed patterns chosen per modality."
+  },
+  {
+   "id": "14:abs",
+   "n": 14,
+   "text": "Fast Transformer Decoding: One Write-Head is All You Need. Multi-query attention shares one set of keys and values across heads, cutting the memory traffic that bottlenecks decoding. Method: Single shared key/value head (multi-query attention). Data: Translation and language modelling. Result: Much faster incremental decoding with only minor quality loss. Limitations: Small quality drop; trained from scratch."
+  },
+  {
+   "id": "15:abs",
+   "n": 15,
+   "text": "GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints. Grouped-query attention sits between multi-head and multi-query attention and can be added to existing checkpoints cheaply. Method: Uptraining multi-head checkpoints into grouped-query attention. Data: T5 models on summarisation, translation, QA. Result: Quality close to multi-head attention at speed comparable to multi-query; uptraining uses 5% of original pretraining compute. Limitations: Evaluated on encoder-decoder T5."
+  },
+  {
+   "id": "16:abs",
+   "n": 16,
+   "text": "Attention Is All You Need. Introduces the Transformer, built entirely on attention; self-attention cost grows with the square of sequence length. Method: Multi-head scaled dot-product self-attention. Data: WMT translation. Result: State of the art translation at lower training cost; per-layer self-attention complexity O(n²·d). Limitations: Quadratic cost limits sequence length."
+  }
+ ],
+ "stats": {
+  "found": 214,
+  "screened": 152,
+  "relevant": 41,
+  "included": 16,
+  "fullText": 8,
+  "rounds": 2,
+  "queries": 12,
+  "snowballed": 3,
+  "chunks": 268,
+  "sources": {
+   "openalex": 96,
+   "semanticscholar": 58,
+   "arxiv": 60
+  },
+  "llmCalls": 41,
+  "tokens": 312000,
+  "durationMs": 287000
+ },
+ "finishedAt": 1791531578048,
+ "notes": [],
+ "verifications": [],
+ "evidenceFinds": []
+}

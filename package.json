@@ -1,0 +1,17 @@
+{
+  "name": "marginalia",
+  "version": "1.0.0",
+  "description": "Deep research and literature review agent: n8n orchestrates a recursive, full-text RAG pipeline; ElevenLabs gives it a voice you can debate.",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "build:workflows": "node n8n/build.mjs",
+    "test": "node n8n/build.mjs && node scripts/test-e2e.mjs",
+    "check": "node scripts/check-workflows.mjs",
+    "mock": "node scripts/mock-services.mjs"
+  },
+  "license": "MIT"
+}

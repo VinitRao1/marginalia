@@ -1,0 +1,8 @@
+node_modules
+.env
+data/sessions
+data/media
+data/.callback-secret
+data/elevenlabs-agent.json
+.git
+docs

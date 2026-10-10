@@ -1,0 +1,30 @@
+# One-click deploy of the Marginalia studio to Render (free plan works).
+# The live deployment runs the n8n workflow JSON with the built-in engine;
+# use docker-compose for the full n8n stack.
+services:
+  - type: web
+    name: marginalia
+    runtime: node
+    plan: free
+    buildCommand: echo "No build step needed"
+    startCommand: node server/index.js
+    healthCheckPath: /api/sessions
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: ENGINE
+        value: local
+      - key: STUDIO_ACCESS_CODE
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: OPENALEX_API_KEY
+        sync: false
+      - key: CONTACT_EMAIL
+        sync: false
